@@ -8,9 +8,11 @@ from typing_extensions import Literal
 from pydub import AudioSegment
 from pydub.playback import play
 from subprocess import Popen
+import time
 
 SPEAKER_LANGS = list(gtts.lang.tts_langs().keys())
-TEMP = "D:\PyStuff\TDModules\data_temp"
+#TEMP = "D:\PyStuff\TDModules\data_temp"
+TEMP = "C:\HoloData\HoloSecrets\speaker_temp"
 
 
 class Mixer:
@@ -78,7 +80,7 @@ class Speaker:
         self.channel = channel
         self.engine_kwargs.update({"lang": language})
         self.w_dir = w_dir
-        self._temp_pointer = os.path.join(self.w_dir, f"temp_{self.channel}.mp3")
+        self._temp_pointer = os.path.join(self.w_dir, f"spoken_temp_{self.channel}.mp3")
 
     def speak(
         self,
@@ -96,6 +98,8 @@ class Speaker:
         text_obj = gTTS(text, **self.engine_kwargs)
         speak_to = target or self._temp_pointer
         text_obj.save(speak_to)
+        print(speak_to)
+        time.sleep(2)
         sound = AudioSegment.from_mp3(speak_to)
         return sound
 

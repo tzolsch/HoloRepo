@@ -9,9 +9,11 @@ from TextKneter.speaker import Mixer, Speaker
 from pydub.playback import play
 import openai
 import os
+import pandas as pd
+from easynmt import EasyNMT
 
 
-openai.api_key = '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'
+openai.api_key = pd.read_csv('C:\HoloData\HoloSecrets\openAIKeyPeter.txt').columns[0]
 
 GPT_prompt_head = "1. Erkenne dich selbst. " \
          "2. Beherrsche die Regeln deiner Hexenkunst. " \
@@ -27,7 +29,7 @@ GPT_prompt_head = "1. Erkenne dich selbst. " \
          "12. Meditiere. " \
          "13. Ehre die Göttin und den Gott. "
 
-trans_langs = list(googletrans.LANGCODES.values())
+
 r = sr.Recognizer()
 try:
     m = sr.Microphone()
@@ -38,11 +40,19 @@ except OSError:
 
 stopListening = None
 open_ports = {}
-translator = googletrans.Translator(service_urls=['translate.googleapis.com'])
 
 STT_ENGINE = 'google'  # either "google" (online), or "sphinx" (offline) ("sphinx" is fallback engine) - sphinx not implemented yet
 STT_LANG = 'de-DE'
 
+TR_ENGINE = 'facebook' # either "google" (online) or facebook (oflline -> 'm2m_100_148M' model)
+if TR_ENGINE == 'google':
+    trans_langs = list(googletrans.LANGCODES.values())
+    translator = googletrans.Translator(service_urls=['translate.googleapis.com'])
+    trans_func = lambda txt, src, trg: translator.translate(txt, src=src, dest=trg).text
+elif TR_ENGINE == 'facebook':
+    model = EasyNMT('m2m_100_1.2B')
+    trans_langs = model.get_languages()
+    trans_func = lambda txt, src, trg: model.translate(txt, source_lang=src, target_lang=trg)
 
 def dmmThread(port):
     global open_ports
@@ -144,7 +154,8 @@ def chainTransThread(txt, lang_list):
         txt_chain += [txt]
     else:
         for k in range(len(lang_list) - 1):
-            txt_chain += [translator.translate(txt_chain[k], src=lang_list[k], dest=lang_list[k+1]).text]
+            txt_chain += [trans_func(txt=txt_chain[k], src=lang_list[k], trg=lang_list[k+1])]
+            # txt_chain += [translator.translate(txt_chain[k], src=lang_list[k], dest=lang_list[k+1]).text]
     result = []
     for k in range(len(txt_chain)):
         result += (lang_list[k],)
@@ -178,10 +189,10 @@ def gpt(unused_addrs, args):
 
 
 def gptThread(args):
-    response = openai.Completion.create(engine="text-curie-001",prompt=args,temperature=0.6,top_p=1,max_tokens=200,frequency_penalty=0,presence_penalty=0)
+    response = openai.Completion.create(engine="text-curie-001",prompt=args,temperature=0.6,top_p=1,max_tokens=20,frequency_penalty=0,presence_penalty=0)
     print('GPT_PROMPT = ' + args)
     print('GPT_RESPONSE = ' + response.choices[0].text)
-    client.send_message('/GPT',response.choices[0].text)
+    client.send_message('/GPT',response.choices[0].text.replace('\n', ' '))
     return
 
 
