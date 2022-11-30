@@ -13,7 +13,7 @@ import pandas as pd
 from easynmt import EasyNMT
 
 
-openai.api_key = pd.read_csv('C:\HoloData\HoloSecrets\openAIKeyPeter.txt').columns[0]
+openai.api_key = pd.read_csv('Secrets\openAIKeyPeter.txt').columns[0]
 
 GPT_prompt_head = "1. Erkenne dich selbst. " \
          "2. Beherrsche die Regeln deiner Hexenkunst. " \
@@ -44,7 +44,7 @@ open_ports = {}
 STT_ENGINE = 'google'  # either "google" (online), or "sphinx" (offline) ("sphinx" is fallback engine) - sphinx not implemented yet
 STT_LANG = 'de-DE'
 
-TR_ENGINE = 'facebook' # either "google" (online) or facebook (oflline -> 'm2m_100_148M' model)
+TR_ENGINE = 'google' #'facebook' # either "google" (online) or facebook (oflline -> 'm2m_100_148M' model)
 if TR_ENGINE == 'google':
     trans_langs = list(googletrans.LANGCODES.values())
     translator = googletrans.Translator(service_urls=['translate.googleapis.com'])
