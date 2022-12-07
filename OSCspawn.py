@@ -44,7 +44,7 @@ open_ports = {}
 STT_ENGINE = 'google'  # either "google" (online), or "sphinx" (offline) ("sphinx" is fallback engine) - sphinx not implemented yet
 STT_LANG = 'de-DE'
 
-TR_ENGINE = 'google' #'facebook' # either "google" (online) or facebook (oflline -> 'm2m_100_148M' model)
+TR_ENGINE = 'facebook'  # either "google" (online) or "facebook" (offlline) -> 'm2m_100_1.28M' model)
 if TR_ENGINE == 'google':
     trans_langs = list(googletrans.LANGCODES.values())
     translator = googletrans.Translator(service_urls=['translate.googleapis.com'])
@@ -120,7 +120,7 @@ def startListening(unused_addr, args):
 
     global stopListening
     client.send_message("/startlistening", "Listening thread started")
-    stopListening = r.listen_in_background(m, callback, phrase_time_limit=5)
+    stopListening = r.listen_in_background(m, callback, phrase_time_limit=10)
     return
 
 
