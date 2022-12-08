@@ -57,7 +57,15 @@ elif TR_ENGINE == 'facebook':
 def dmmThread(port):
     global open_ports
     print(port)
-    dmm = Dmm(port=port)
+    portclosed = True
+    while portclosed:
+        try:
+            dmm = Dmm(port=port)
+            portclosed = False
+            client.send_message(f"/start_video", "")
+        except Exception:
+            pass
+
     while open_ports[port]:
         v = dmm.read().numericVal
         client.send_message(f"/dmm_{port}", str(v))
