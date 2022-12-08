@@ -12,8 +12,8 @@ import time
 
 SPEAKER_LANGS = list(gtts.lang.tts_langs().keys())
 #TEMP = "D:\PyStuff\TDModules\data_temp"
-TEMP = "C:\HoloData\HoloSecrets\speaker_temp"
-
+#TEMP = "C:\HoloData\HoloSecrets\speaker_temp"
+TEMP = os.path.abspath("Secrets")
 
 class Mixer:
     sub_channel = 0
@@ -99,7 +99,7 @@ class Speaker:
         speak_to = target or self._temp_pointer
         text_obj.save(speak_to)
         print(speak_to)
-        time.sleep(2)
+        time.sleep(1)
         sound = AudioSegment.from_mp3(speak_to)
         return sound
 
