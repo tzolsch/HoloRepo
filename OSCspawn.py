@@ -44,7 +44,8 @@ open_ports = {}
 STT_ENGINE = 'google'  # either "google" (online), or "sphinx" (offline) ("sphinx" is fallback engine) - sphinx not implemented yet
 STT_LANG = 'de-DE'
 
-TR_ENGINE = 'facebook'  # either "google" (online) or "facebook" (offlline) -> 'm2m_100_1.28M' model)
+#TR_ENGINE = 'facebook'
+TR_ENGINE = 'google'# either "google" (online) or "facebook" (offlline) -> 'm2m_100_1.28M' model)
 if TR_ENGINE == 'google':
     trans_langs = list(googletrans.LANGCODES.values())
     translator = googletrans.Translator(service_urls=['translate.googleapis.com'])
@@ -54,21 +55,26 @@ elif TR_ENGINE == 'facebook':
     trans_langs = model.get_languages()
     trans_func = lambda txt, src, trg: model.translate(txt, source_lang=src, target_lang=trg)
 
+
 def dmmThread(port):
     global open_ports
     print(port)
-    portclosed = True
-    while portclosed:
+    port_denied = True
+    while port_denied:
         try:
             dmm = Dmm(port=port)
-            portclosed = False
-            client.send_message(f"/start_video", "")
+            port_denied = False
+            client.send_message(f"/{port}_stream_start", "")
         except Exception:
             pass
 
     while open_ports[port]:
-        v = dmm.read().numericVal
-        client.send_message(f"/dmm_{port}", str(v))
+        try:
+            v = dmm.read().numericVal
+            client.send_message(f"/dmm_{port}", str(v))
+        except Exception:
+            client.send_message(f"/{port}_stream_stop", "")
+            open_ports[port] = False
     dmm.close()
     return
 
@@ -82,7 +88,7 @@ def openDmmPort(unused_addr, args):
     return
 
 
-def closePort(unused_addr, args):
+def closeDMMPort(unused_addr, args):
     global open_ports
     open_ports[args[0]] = False
     client.send_message("/portclosed", args[0])
@@ -218,7 +224,7 @@ if __name__ == '__main__':
     dispatcher.map("/startlistening", startListening)
     dispatcher.map("/stoplistening", stopListening)
     dispatcher.map("/opendmmport", openDmmPort)
-    dispatcher.map("/closeport", closePort)
+    dispatcher.map("/closeport", closeDMMPort)
     dispatcher.map("/chainTrans", chainTrans)
     dispatcher.map("/TTS", tts)
     dispatcher.map("/GPT", gpt)
