@@ -11,3 +11,14 @@
 * TDdata
   * enthält touchdesigner scripte und snippets: 
     * "HoloTD.toe" ist der aktuelle stand and quasi die öh front seite um mit dem udp proczess zu kommunizieren der in OSCSpawn.py gespawnt wird
+
+Also um alles zu testen/an zu stoßen einfach OSCspawn.py ausführen dann kann man über touchdesigner oder von wo anders OSC/udp nachrichten an den clienten (oder server - bringe das immer durcheinander) schicken und die entsprechendn threads werden dann gespawned und messungen oder MICRO mitschnitte oder was so anfällt senden die threads dann auch über diesen clienten. Die Adresse von dem clienten ist einfach:
+
+ip = "127.0.0.1"
+sendPort = 7000
+inPort = 8000
+
+Aber das kann man im OSCSpawn leicht ändern (da in dem main block ist das gut sichtbar)
+Auch welche OSC tags auf welche funktionalität gemapt wird kann man da in dem main block ganz gut sehen. Ich hab alles versuch ein bisschen zu dokumentieren
+
+LG
