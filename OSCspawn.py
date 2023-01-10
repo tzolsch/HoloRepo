@@ -10,42 +10,50 @@ from pydub.playback import play
 import openai
 import os
 import pandas as pd
-from easynmt import EasyNMT
 
+# That one is required to build local language models but needs PyTorch
+#from easynmt import EasyNMT
 
-openai.api_key = pd.read_csv('Secrets\openAIKeyPeter.txt').columns[0]
-
-GPT_prompt_head = "1. Erkenne dich selbst. " \
-         "2. Beherrsche die Regeln deiner Hexenkunst. " \
-         "3. Höre nie auf zu lernen. " \
-         "4. Wende dein Wissen weise an. " \
-         "5. Lebe im Gleichgewicht. " \
-         "6. Wisse immer, was du sagst und warum du es sagst. " \
-         "7. Sei mental konzentriert. " \
-         "8. Lebe im Einklang mit der Natur. " \
-         "9. Feiere das Leben. " \
-         "10. Atme bewusst, ernähre dich gesund. " \
-         "11. Trainiere deinen Körper. " \
-         "12. Meditiere. " \
-         "13. Ehre die Göttin und den Gott. "
-
-
-r = sr.Recognizer()
+# Try to load OpenAI API key from local Secrets folder
 try:
-    m = sr.Microphone()
-    Mic = True
+    openai.api_key = pd.read_csv('Secrets\openAIKeyPeter.txt').columns[0]
+except FileNotFoundError:
+    # if not available: load dummy key to not break script execution:
+    openai.api_key = '1234'
+
+# GTP finetuning prompt - needed for custom AI response thread only
+GTP_PROMPT_HEAD = "Fine Tune String."
+
+# ------------------------------------- global speech-to-text related variables ----------------
+# Instantiate Speech to text Recognizer
+REC = sr.Recognizer()
+
+# Try Instantiating Microphone Connection:
+try:
+    micro = sr.Microphone()
+    MIC = True
 except OSError:
-    m = None
-    Mic = False
+    micro = None
+    MIC = False
 
-stopListening = None
-open_ports = {}
+# global variable to trigger interruption of listening
+STOPLISTENING = None
 
+# translator engine
 STT_ENGINE = 'google'  # either "google" (online), or "sphinx" (offline) ("sphinx" is fallback engine) - sphinx not implemented yet
-STT_LANG = 'de-DE'
+STT_LANG = 'de-DE' # language code of the language that is to be speech-to-text´ed
 
-#TR_ENGINE = 'facebook'
-TR_ENGINE = 'google'# either "google" (online) or "facebook" (offlline) -> 'm2m_100_1.28M' model)
+# --------- global electrometer (DMM) related variables ----------------
+
+OPEN_PORTS = {}
+
+# --------- global translation related variables ----------------
+
+# language model:
+# either "google" (online) or "facebook" (offlline) -> 'm2m_100_1.28M' model - facebook needs pytorch (required by EasyNMT)
+TR_ENGINE = 'google'
+
+# instantiate translator function (offline model might update/download ~ 3 gB)
 if TR_ENGINE == 'google':
     trans_langs = list(googletrans.LANGCODES.values())
     translator = googletrans.Translator(service_urls=['translate.googleapis.com'])
@@ -55,9 +63,48 @@ elif TR_ENGINE == 'facebook':
     trans_langs = model.get_languages()
     trans_func = lambda txt, src, trg: model.translate(txt, source_lang=src, target_lang=trg)
 
+# ----------------- library of functions that can be triggered ------------------------------
+
+
+
+def openDmmPort(unused_addr, args):
+    """
+    Opens a Serial USB port where the electrometer (DMM) Data is expected to stream in from:
+    A Listener Thread is spawned to wait for incoming data in the background and send it through the
+    udp client.
+
+    :param args:
+        Tuple - args[0] must be the Port adress string.
+        For example "COM5" for windows port number 5
+    """
+    global OPEN_PORTS
+    OPEN_PORTS[args[0]] = True
+    dmm_thread = Thread(target=dmmThread, args=(args[0],), daemon=True)
+    client.send_message("/portopened", args[0])
+    dmm_thread.start()
+    return
+
+def closeDMMPort(unused_addr, args):
+    """
+    Closes a Serial USB port. (And makes it available for other processes again):
+
+    :param args:
+        Tuple - args[0] must be the Port adress string.
+        For example "COM5" for windows port number 5
+    """
+    global OPEN_PORTS
+    OPEN_PORTS[args[0]] = False
+    client.send_message("/portclosed", args[0])
+    return
+
 
 def dmmThread(port):
-    global open_ports
+    """
+    Thread spawned by openDmmPort function.
+    Sends electrometer meassurements with the osc tag "/dmm_COM5" (for port 5)
+    through udp client
+    """
+    global OPEN_PORTS
     print(port)
     port_denied = True
     while port_denied:
@@ -68,88 +115,87 @@ def dmmThread(port):
         except Exception:
             pass
 
-    while open_ports[port]:
+    while OPEN_PORTS[port]:
         try:
             v = dmm.read().numericVal
             client.send_message(f"/dmm_{port}", str(v))
         except Exception:
             client.send_message(f"/{port}_stream_stop", "")
-            open_ports[port] = False
+            OPEN_PORTS[port] = False
     dmm.close()
     return
-
-
-def openDmmPort(unused_addr, args):
-    global open_ports
-    open_ports[args[0]] = True
-    dmm_thread = Thread(target=dmmThread, args=(args[0],), daemon=True)
-    client.send_message("/portopened", args[0])
-    dmm_thread.start()
-    return
-
-
-def closeDMMPort(unused_addr, args):
-    global open_ports
-    open_ports[args[0]] = False
-    client.send_message("/portclosed", args[0])
-    return
-
 
 def callback(recognizer, audio):
     try:
         if STT_ENGINE == 'google':
-            data = r.recognize_google(audio, language=STT_LANG)
+            data = REC.recognize_google(audio, language=STT_LANG)
         else:
-            data = r.recognize_sphinx(audio, language=STT_LANG)
+            data = REC.recognize_sphinx(audio, language=STT_LANG)
     except sr.UnknownValueError:
         print('hum?')
         data = 'hum?'
     except sr.RequestError:
         print('Google Trans Unavailable')
-        data = r.recognize_sphinx(audio, language=STT_LANG)
+        data = REC.recognize_sphinx(audio, language=STT_LANG)
     client.send_message("/STT", data)
     return
 
 
 def calibrateThreshold(unused_addr, args):
-
-    if not Mic:
+    """
+    Function triggered by "/calibrate" osc message - calibrates open MIC by setting
+    background noise threshold
+    """
+    if not MIC:
         client.send_message("/calibration", "No Microphone")
         return
 
     client.send_message("/calibration", "Calibration commenced")
     try:
-        with m as source:
-            r.adjust_for_ambient_noise(source, duration=2.0)
-            client.send_message("/calibration", f"Minimum threshold set to {r.energy_threshold}")
+        with micro as source:
+            REC.adjust_for_ambient_noise(source, duration=2.0)
+            client.send_message("/calibration", f"Minimum threshold set to {REC.energy_threshold}")
     except (KeyboardInterrupt):
         print('Keyboard interrupt received.')
         pass
 
 
 def startListening(unused_addr, args):
-    if not Mic:
+    """
+    Function triggered by "/startlistening" osc message - starts background listening
+    of microphone for spoken phrases to transform to text.
+    """
+    if not MIC:
         client.send_message("/startlistening", "No Microphone")
         return
 
-    global stopListening
+    global STOPLISTENING
     client.send_message("/startlistening", "Listening thread started")
-    stopListening = r.listen_in_background(m, callback, phrase_time_limit=10)
+    STOPLISTENING = REC.listen_in_background(micro, callback, phrase_time_limit=10)
     return
 
 
 def stopListening(unused_addr, args):
-    if not Mic:
+    """
+    Function triggered by "/stoplistening" osc message - stops background listening
+    of microphone
+    """
+    if not MIC:
         client.send_message("/stoppedlistening", "No Microphone")
         return
 
-    global stopListening
+    global STOPLISTENING
     client.send_message("/stoppedlistening", "stopped microphone thread")
-    stopListening(wait_for_stop=False)
+    STOPLISTENING(wait_for_stop=False)
     return
 
 
 def chainTrans(unused_addrs, args):
+    """
+    Function triggered by "/chainTrans" osc message -
+    Translates string args[0] through the languages indicated by a list of lang codes
+    in args[1].
+    """
     in_txt = args[0]
     chain_len = args[1]
     lang_list = ['de']
@@ -163,6 +209,10 @@ def chainTrans(unused_addrs, args):
 
 
 def chainTransThread(txt, lang_list):
+    """
+    worker thread spawned by chainTrans to do the translation and send results through osc client with
+    "/chainTransResult" tag.
+    """
     txt_chain = [txt]
     if len(lang_list) == 2:
         txt_chain += [txt]
@@ -180,12 +230,18 @@ def chainTransThread(txt, lang_list):
 
 
 def tts(unused_addrs, args):
+    """
+    Text to Speech function
+    """
     thread_obj = Thread(target=ttsThread, args=(args,), daemon=True)
     thread_obj.start()
     return
 
 
 def ttsThread(args):
+    """
+    worker thread spawned by text-to-speech function
+    """
     so = Speaker()
     tgt = None
     sound = so.speak(text=args[-1], target=tgt)
@@ -195,7 +251,7 @@ def ttsThread(args):
 
 
 def gpt(unused_addrs, args):
-    txt = GPT_prompt_head + args
+    txt = GTP_PROMPT_HEAD + args
     print('GPT triggered!')
     thread_obj = Thread(target=gptThread, args=(txt,), daemon=True)
     thread_obj.start()
@@ -220,9 +276,10 @@ if __name__ == '__main__':
 
     # catching OSC messages
     dispatcher = dispatcher.Dispatcher()
+    # register functionalities by mapping tgs to functions
     dispatcher.map("/calibrate", calibrateThreshold)
     dispatcher.map("/startlistening", startListening)
-    dispatcher.map("/stoplistening", stopListening)
+    dispatcher.map("/stoplistening", STOPLISTENING)
     dispatcher.map("/opendmmport", openDmmPort)
     dispatcher.map("/closeport", closeDMMPort)
     dispatcher.map("/chainTrans", chainTrans)
