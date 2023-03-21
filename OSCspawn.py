@@ -25,8 +25,11 @@ except FileNotFoundError:
 GTP_PROMPT_HEAD = "Fine Tune String."
 
 # ------------------------------------- global speech-to-text related variables ----------------
+MAX_INTRA_PHRASE_PAUSE = 2
+PHRASE_TIME_LIMIT = 15
 # Instantiate Speech to text Recognizer
 REC = sr.Recognizer()
+REC.pause_threshold = MAX_INTRA_PHRASE_PAUSE
 
 # Try Instantiating Microphone Connection:
 try:
@@ -132,12 +135,14 @@ def callback(recognizer, audio):
         else:
             data = REC.recognize_sphinx(audio, language=STT_LANG)
     except sr.UnknownValueError:
-        data = 'None'
+        data = 'Nonn'
     except sr.RequestError:
         print('Google Trans Unavailable')
         data = REC.recognize_sphinx(audio, language=STT_LANG)
-    if not data == 'None':
+    if not data == 'Nonn':
         client.send_message("/STT", data)
+    else:
+        print('Silence')
     return
 
 
@@ -171,7 +176,7 @@ def startListening(unused_addr, args):
 
     global STOPLISTENING
     client.send_message("/startlistening", "Listening thread started")
-    STOPLISTENING = REC.listen_in_background(micro, callback, phrase_time_limit=10)
+    STOPLISTENING = REC.listen_in_background(micro, callback, phrase_time_limit=PHRASE_TIME_LIMIT)
     return
 
 
@@ -260,7 +265,7 @@ def gpt(unused_addrs, args):
 
 def gptThread(args):
     try:
-        response = openai.Completion.create(engine="text-curie-001",prompt=args,temperature=0.6,top_p=1,max_tokens=20,frequency_penalty=0,presence_penalty=0)
+        response = openai.Completion.create(engine="text-curie-001", prompt=args, temperature=0.6, top_p=1, max_tokens=20, frequency_penalty=0, presence_penalty=0)
         print('GPT_PROMPT = ' + args)
         print('GPT_RESPONSE = ' + response.choices[0].text)
         client.send_message('/GPT', response.choices[0].text.replace('\n', ' '))
@@ -282,7 +287,7 @@ if __name__ == '__main__':
     # register functionalities by mapping tgs to functions
     dispatcher.map("/calibrate", calibrateThreshold)
     dispatcher.map("/startlistening", startListening)
-    dispatcher.map("/stoplistening", STOPLISTENING)
+    dispatcher.map("/stoplistening", stopListening)
     dispatcher.map("/opendmmport", openDmmPort)
     dispatcher.map("/closeport", closeDMMPort)
     dispatcher.map("/chainTrans", chainTrans)
