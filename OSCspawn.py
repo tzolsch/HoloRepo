@@ -10,7 +10,7 @@ from pydub.playback import play
 import openai
 import os
 import pandas as pd
-
+from openai.error import RateLimitError
 # That one is required to build local language models but needs PyTorch
 #from easynmt import EasyNMT
 
@@ -132,12 +132,12 @@ def callback(recognizer, audio):
         else:
             data = REC.recognize_sphinx(audio, language=STT_LANG)
     except sr.UnknownValueError:
-        print('hum?')
-        data = 'hum?'
+        data = 'None'
     except sr.RequestError:
         print('Google Trans Unavailable')
         data = REC.recognize_sphinx(audio, language=STT_LANG)
-    client.send_message("/STT", data)
+    if not data == 'None':
+        client.send_message("/STT", data)
     return
 
 
@@ -259,10 +259,13 @@ def gpt(unused_addrs, args):
 
 
 def gptThread(args):
-    response = openai.Completion.create(engine="text-curie-001",prompt=args,temperature=0.6,top_p=1,max_tokens=20,frequency_penalty=0,presence_penalty=0)
-    print('GPT_PROMPT = ' + args)
-    print('GPT_RESPONSE = ' + response.choices[0].text)
-    client.send_message('/GPT',response.choices[0].text.replace('\n', ' '))
+    try:
+        response = openai.Completion.create(engine="text-curie-001",prompt=args,temperature=0.6,top_p=1,max_tokens=20,frequency_penalty=0,presence_penalty=0)
+        print('GPT_PROMPT = ' + args)
+        print('GPT_RESPONSE = ' + response.choices[0].text)
+        client.send_message('/GPT', response.choices[0].text.replace('\n', ' '))
+    except RateLimitError:
+        print('GPT funds depleted!')
     return
 
 
