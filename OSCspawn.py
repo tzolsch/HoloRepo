@@ -25,8 +25,8 @@ except FileNotFoundError:
 GTP_PROMPT_HEAD = "Fine Tune String."
 
 # ------------------------------------- global speech-to-text related variables ----------------
-MAX_INTRA_PHRASE_PAUSE = 2
-PHRASE_TIME_LIMIT = 15
+MAX_INTRA_PHRASE_PAUSE = 2.0
+PHRASE_TIME_LIMIT = 10
 # Instantiate Speech to text Recognizer
 REC = sr.Recognizer()
 REC.pause_threshold = MAX_INTRA_PHRASE_PAUSE
@@ -271,6 +271,7 @@ def gptThread(args):
         client.send_message('/GPT', response.choices[0].text.replace('\n', ' '))
     except RateLimitError:
         print('GPT funds depleted!')
+        client.send_message('/GPT', args)
     return
 
 
