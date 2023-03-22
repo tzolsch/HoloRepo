@@ -11,6 +11,8 @@ import openai
 import os
 import pandas as pd
 from openai.error import RateLimitError
+from identities import WICCA_ID
+
 # That one is required to build local language models but needs PyTorch
 #from easynmt import EasyNMT
 
@@ -61,6 +63,10 @@ TR_ENGINE = 'google'
 
 CH_NUM = 2
 CURRENT_CH = 0
+
+# ----------- GPT configuration -----------------
+
+MAX_TOKENS = 40
 
 # instantiate translator function (offline model might update/download ~ 3 gB)
 if TR_ENGINE == 'google':
@@ -263,19 +269,20 @@ def ttsThread(args):
     return
 
 
-def gpt(unused_addrs, msg, temp, freq, pres):
-    txt = GTP_PROMPT_HEAD + msg
-    print('GPT triggered!')
-    thread_obj = Thread(target=gptThread, args=(txt, temp, freq, pres), daemon=True)
+def gpt(unused_addrs, msg, temp, freq, pres, tok, role):
+    if role == 'WICCA':
+        txt = WICCA_ID + msg
+    else:
+        txt = msg
+
+    thread_obj = Thread(target=gptThread, args=(txt, temp, freq, pres, tok), daemon=True)
     thread_obj.start()
     return
 
-
-def gptThread(txt, temp, freq, pres):
-    # bypassing gpt for testing purposes and credit shortage
-    # client.send_message('/GPT', args)
+def gptThread(txt, temp, freq, pres, tok):
     try:
-        response = openai.Completion.create(engine="text-curie-001", prompt=txt, temperature=temp, top_p=1, max_tokens=20, frequency_penalty=freq, presence_penalty=pres)
+        response = openai.Completion.create(engine="text-curie-001", prompt=txt, temperature=temp, top_p=1,
+                                            max_tokens=tok, frequency_penalty=freq, presence_penalty=pres)
         print('GPT_PROMPT = ' + txt)
         print('GPT_RESPONSE = ' + response.choices[0].text)
         client.send_message('/GPT', response.choices[0].text.replace('\n', ' '))
