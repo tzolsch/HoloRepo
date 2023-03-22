@@ -263,25 +263,25 @@ def ttsThread(args):
     return
 
 
-def gpt(unused_addrs, args):
-    txt = GTP_PROMPT_HEAD + args
+def gpt(unused_addrs, msg, temp, freq, pres):
+    txt = GTP_PROMPT_HEAD + msg
     print('GPT triggered!')
-    thread_obj = Thread(target=gptThread, args=(txt,), daemon=True)
+    thread_obj = Thread(target=gptThread, args=(txt, temp, freq, pres), daemon=True)
     thread_obj.start()
     return
 
 
-def gptThread(args):
+def gptThread(txt, temp, freq, pres):
     # bypassing gpt for testing purposes and credit shortage
-    client.send_message('/GPT', args)
-    #try:
-    #    response = openai.Completion.create(engine="text-curie-001", prompt=args, temperature=0.6, top_p=1, max_tokens=20, frequency_penalty=0, presence_penalty=0)
-    #    print('GPT_PROMPT = ' + args)
-    #    print('GPT_RESPONSE = ' + response.choices[0].text)
-    #    client.send_message('/GPT', response.choices[0].text.replace('\n', ' '))
-    #except RateLimitError:
-    #    print('GPT funds depleted!')
-    #    client.send_message('/GPT', args)
+    # client.send_message('/GPT', args)
+    try:
+        response = openai.Completion.create(engine="text-curie-001", prompt=txt, temperature=temp, top_p=1, max_tokens=20, frequency_penalty=freq, presence_penalty=pres)
+        print('GPT_PROMPT = ' + txt)
+        print('GPT_RESPONSE = ' + response.choices[0].text)
+        client.send_message('/GPT', response.choices[0].text.replace('\n', ' '))
+    except RateLimitError:
+        print('GPT funds depleted!')
+        client.send_message('/GPT', txt)
     return
 
 
