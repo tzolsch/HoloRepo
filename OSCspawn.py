@@ -25,6 +25,7 @@ except FileNotFoundError:
 GTP_PROMPT_HEAD = "Fine Tune String."
 
 # ------------------------------------- global speech-to-text related variables ----------------
+
 MAX_INTRA_PHRASE_PAUSE = 2.0
 PHRASE_TIME_LIMIT = 10
 # Instantiate Speech to text Recognizer
@@ -288,7 +289,7 @@ if __name__ == '__main__':
     # register functionalities by mapping tgs to functions
     dispatcher.map("/calibrate", calibrateThreshold)
     dispatcher.map("/startlistening", startListening)
-    dispatcher.map("/stoplistening", stopListening)
+    dispatcher.map("/stoplistening", STOPLISTENING)
     dispatcher.map("/opendmmport", openDmmPort)
     dispatcher.map("/closeport", closeDMMPort)
     dispatcher.map("/chainTrans", chainTrans)
