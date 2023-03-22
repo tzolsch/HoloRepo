@@ -100,8 +100,8 @@ class Speaker:
         text_obj.save(speak_to)
         print(speak_to)
         time.sleep(1)
-        sound = AudioSegment.from_mp3(speak_to)
-        return sound
+        # sound = AudioSegment.from_mp3(speak_to)
+        return #sound
 
 
 if __name__ == "__main__":

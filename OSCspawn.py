@@ -22,12 +22,12 @@ except FileNotFoundError:
     openai.api_key = '1234'
 
 # GTP finetuning prompt - needed for custom AI response thread only
-GTP_PROMPT_HEAD = "Fine Tune String."
+GTP_PROMPT_HEAD = ""
 
 # ------------------------------------- global speech-to-text related variables ----------------
 
 MAX_INTRA_PHRASE_PAUSE = 2.0
-PHRASE_TIME_LIMIT = 10
+PHRASE_TIME_LIMIT = 20
 # Instantiate Speech to text Recognizer
 REC = sr.Recognizer()
 REC.pause_threshold = MAX_INTRA_PHRASE_PAUSE
@@ -56,6 +56,11 @@ OPEN_PORTS = {}
 # language model:
 # either "google" (online) or "facebook" (offlline) -> 'm2m_100_1.28M' model - facebook needs pytorch (required by EasyNMT)
 TR_ENGINE = 'google'
+
+# --------- global text-to-speech related variables -------------
+
+CH_NUM = 2
+CURRENT_CH = 0
 
 # instantiate translator function (offline model might update/download ~ 3 gB)
 if TR_ENGINE == 'google':
@@ -248,11 +253,13 @@ def ttsThread(args):
     """
     worker thread spawned by text-to-speech function
     """
+    global CURRENT_CH
+    CURRENT_CH = (CURRENT_CH + 1) % 10
     so = Speaker()
-    tgt = None
-    sound = so.speak(text=args[-1], target=tgt)
-    play(sound)
-    #client.send_message('/TTS', os.path.join(so.w_dir, tgt))
+    tgt = f'spoken{CURRENT_CH}.mp3'
+    so.speak(text=args[-1], target=tgt)
+    #play(sound)
+    client.send_message('/TTS', (CURRENT_CH,))
     return
 
 
@@ -265,14 +272,16 @@ def gpt(unused_addrs, args):
 
 
 def gptThread(args):
-    try:
-        response = openai.Completion.create(engine="text-curie-001", prompt=args, temperature=0.6, top_p=1, max_tokens=20, frequency_penalty=0, presence_penalty=0)
-        print('GPT_PROMPT = ' + args)
-        print('GPT_RESPONSE = ' + response.choices[0].text)
-        client.send_message('/GPT', response.choices[0].text.replace('\n', ' '))
-    except RateLimitError:
-        print('GPT funds depleted!')
-        client.send_message('/GPT', args)
+    # bypassing gpt for testing purposes and credit shortage
+    client.send_message('/GPT', args)
+    #try:
+    #    response = openai.Completion.create(engine="text-curie-001", prompt=args, temperature=0.6, top_p=1, max_tokens=20, frequency_penalty=0, presence_penalty=0)
+    #    print('GPT_PROMPT = ' + args)
+    #    print('GPT_RESPONSE = ' + response.choices[0].text)
+    #    client.send_message('/GPT', response.choices[0].text.replace('\n', ' '))
+    #except RateLimitError:
+    #    print('GPT funds depleted!')
+    #    client.send_message('/GPT', args)
     return
 
 
@@ -289,7 +298,7 @@ if __name__ == '__main__':
     # register functionalities by mapping tgs to functions
     dispatcher.map("/calibrate", calibrateThreshold)
     dispatcher.map("/startlistening", startListening)
-    dispatcher.map("/stoplistening", STOPLISTENING)
+    dispatcher.map("/stoplistening", stopListening)
     dispatcher.map("/opendmmport", openDmmPort)
     dispatcher.map("/closeport", closeDMMPort)
     dispatcher.map("/chainTrans", chainTrans)
