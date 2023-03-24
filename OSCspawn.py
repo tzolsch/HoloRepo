@@ -80,7 +80,8 @@ elif TR_ENGINE == 'facebook':
     trans_langs = model.get_languages()
     trans_func = lambda txt, src, trg: model.translate(txt, source_lang=src, target_lang=trg)
 elif TR_ENGINE == 'GPT':
-    trans_langs = ['english', 'spanish', 'italian', 'russian', 'polish', 'greek', 'dutch', 'romanian', 'portuguese', 'arabic']
+    trans_langs = ['english', 'spanish', 'italian', 'russian', 'polish', 'greek', 'dutch', 'romanian', 'portuguese',
+                   'arabic']
     #trans_langs = ['english', 'spanish', 'italian', 'russian', 'chinese']
     trans_prompt = lambda x,y,z: f'Translate from {x} to {y}:\n {z} => '
     def trans_func(txt, src, trg):
@@ -298,7 +299,7 @@ def ttsThread(args):
 
 
 def gpt(unused_addrs, msg, temp, freq, pres, tok, role, eng, trans):
-    txt = ROLES[role] + msg
+    txt = ROLES[role](msg)
     thread_obj = Thread(target=gptThread, args=(txt, temp, freq, pres, tok, eng, trans), daemon=True)
     thread_obj.start()
     return
