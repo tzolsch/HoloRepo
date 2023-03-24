@@ -11,7 +11,7 @@ import openai
 import os
 import pandas as pd
 from openai.error import RateLimitError
-from identities import WICCA_ID
+from identities import ROLES
 
 # That one is required to build local language models but needs PyTorch
 #from easynmt import EasyNMT
@@ -269,19 +269,21 @@ def ttsThread(args):
     return
 
 
-def gpt(unused_addrs, msg, temp, freq, pres, tok, role):
-    if role == 'WICCA':
-        txt = WICCA_ID + msg
-    else:
-        txt = msg
+def gpt(unused_addrs, msg, temp, freq, pres, tok, role, eng):
+    txt = ROLES[role] + msg
 
-    thread_obj = Thread(target=gptThread, args=(txt, temp, freq, pres, tok), daemon=True)
+    thread_obj = Thread(target=gptThread, args=(txt, temp, freq, pres, tok, eng), daemon=True)
     thread_obj.start()
     return
 
-def gptThread(txt, temp, freq, pres, tok):
+def gptThread(txt, temp, freq, pres, tok,eng):
+    engine = ['ada',
+              'babbage',
+              'curie',
+              'text-curie-001',
+              'text-davinci-003']
     try:
-        response = openai.Completion.create(engine="text-curie-001", prompt=txt, temperature=temp, top_p=1,
+        response = openai.Completion.create(engine=engine[eng], prompt=txt, temperature=temp, top_p=1,
                                             max_tokens=tok, frequency_penalty=freq, presence_penalty=pres)
         print('GPT_PROMPT = ' + txt)
         print('GPT_RESPONSE = ' + response.choices[0].text)
