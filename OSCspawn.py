@@ -60,6 +60,7 @@ OPEN_PORTS = {}
 # either "google" (online) or "facebook" (offlline) -> 'm2m_100_1.28M' model - facebook needs pytorch (required by EasyNMT)
 TR_ENGINE = 'GPT'
 TOKEN_CACHE = 1000
+#MEMORY_CACHE = None
 
 # --------- global text-to-speech related variables -------------
 
