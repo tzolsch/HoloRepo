@@ -46,7 +46,7 @@ except OSError:
 STOPLISTENING = None
 
 # translator engine
-STT_ENGINE = 'google'  # either "google" (online), or "sphinx" (offline) ("sphinx" is fallback engine) - sphinx not implemented yet
+STT_ENGINE = 'google'  # either "google" (online), or GPT
 STT_LANG = 'de-DE' # language code of the language that is to be speech-to-text´ed
 
 # --------- global electrometer (DMM) related variables ----------------
@@ -57,7 +57,7 @@ OPEN_PORTS = {}
 
 # language model:
 # either "google" (online) or "facebook" (offlline) -> 'm2m_100_1.28M' model - facebook needs pytorch (required by EasyNMT)
-TR_ENGINE = 'google'
+TR_ENGINE = 'GPT'
 
 # --------- global text-to-speech related variables -------------
 
@@ -77,6 +77,14 @@ elif TR_ENGINE == 'facebook':
     model = EasyNMT('m2m_100_1.2B')
     trans_langs = model.get_languages()
     trans_func = lambda txt, src, trg: model.translate(txt, source_lang=src, target_lang=trg)
+elif TR_ENGINE == 'GPT':
+    trans_langs = ['english', 'spanish', 'italian', 'russian', 'polish', 'greek', 'dutch', 'romanian', 'portuguese', 'hebrew', 'arabic']
+    trans_prompt = lambda x,y,z: f'Translate from {x} to {y}:\n {z} => '
+    def trans_func(txt, src, trg):
+        print(trans_prompt(src, trg, txt))
+        result = (openai.Completion.create(model="text-curie-001", prompt=trans_prompt(src, trg, txt), temperature=0.3, max_tokens=4*len(txt), top_p=1.0, frequency_penalty=0.0, presence_penalty=0.0)).choices[0].text.replace('\n', '')
+        print(result)
+        return result
 
 # ----------------- library of functions that can be triggered ------------------------------
 
@@ -213,13 +221,14 @@ def chainTrans(unused_addrs, args):
     Translates string args[0] through the languages indicated by a list of lang codes
     in args[1].
     """
+    source_l = 'de' if TR_ENGINE != 'GPT' else 'german'
     in_txt = args[0]
     chain_len = args[1]
-    lang_list = ['de']
+    lang_list = [source_l]
     lang_sample = random.sample([k for k in range(len(trans_langs))], chain_len)
     for k in lang_sample:
         lang_list += [trans_langs[k]]
-    lang_list += ['de']
+    lang_list += [source_l]
     thread_obj = Thread(target=chainTransThread, args=(in_txt, lang_list,), daemon=True)
     thread_obj.start()
     return
